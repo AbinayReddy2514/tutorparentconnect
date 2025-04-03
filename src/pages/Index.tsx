@@ -12,11 +12,10 @@ const Index = () => {
       {/* Hero Section */}
       <div className="flex-1 flex flex-col justify-center items-center text-center p-8 bg-gradient-to-b from-white to-gray-100">
         <h1 className="text-5xl font-bold tracking-tight text-gray-900 mb-6">
-          ParentTutor
+          TutorParentConnect
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mb-8">
-          The ultimate platform for tutors and parents to collaborate on student progress, 
-          homework tracking, and academic performance.
+          Comprehensive Tuition Management & Student Progress Tracker
         </p>
         <div className="flex gap-4">
           {isLoggedIn ? (
@@ -84,7 +83,7 @@ const Index = () => {
       
       {/* Footer */}
       <footer className="bg-gray-800 text-white py-8 px-4 text-center">
-        <p>© 2023 ParentTutor. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} TutorParentConnect. All rights reserved.</p>
       </footer>
     </div>
   );
