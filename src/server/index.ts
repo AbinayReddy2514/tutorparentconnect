@@ -1,7 +1,6 @@
-
 import express from 'express';
 import cors from 'cors';
-import { readCSV, writeCSV, appendToCSV } from './csvStorage';
+import { readJSON, writeJSON, appendToJSON } from './jsonStorage';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -38,7 +37,7 @@ app.post('/api/users/register', async (req, res) => {
     }
     
     // Check for existing user
-    const users = await readCSV<any>('users');
+    const users = await readJSON<any>('users');
     const existingUser = users.find(u => u.email === email);
     
     if (existingUser) {
@@ -59,7 +58,7 @@ app.post('/api/users/register', async (req, res) => {
       createdAt: new Date().toISOString()
     };
     
-    await appendToCSV('users', newUser);
+    await appendToJSON('users', newUser);
     
     // Create token
     const token = jwt.sign(
@@ -94,7 +93,7 @@ app.post('/api/users/login', async (req, res) => {
     }
     
     // Check for user
-    const users = await readCSV<any>('users');
+    const users = await readJSON<any>('users');
     const user = users.find(u => u.email === email);
     
     if (!user) {
@@ -133,7 +132,7 @@ app.post('/api/users/login', async (req, res) => {
 // Students API
 app.get('/api/students', auth, async (req: any, res) => {
   try {
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     // Filter by tutor if tutor role
     if (req.user.role === 'tutor') {
       return res.json(students.filter(s => s.tutorId === req.user.id));
@@ -163,7 +162,7 @@ app.post('/api/students', auth, async (req: any, res) => {
     }
     
     // Check if parent exists or create an account
-    const users = await readCSV<any>('users');
+    const users = await readJSON<any>('users');
     let parent = users.find(u => u.email === parentEmail);
     
     if (!parent) {
@@ -181,7 +180,7 @@ app.post('/api/students', auth, async (req: any, res) => {
         createdAt: new Date().toISOString()
       };
       
-      await appendToCSV('users', parent);
+      await appendToJSON('users', parent);
       
       // TODO: In a real app, send email with credentials
       console.log(`Parent account created with email: ${parentEmail} and temporary password: ${tempPassword}`);
@@ -198,7 +197,7 @@ app.post('/api/students', auth, async (req: any, res) => {
       createdAt: new Date().toISOString()
     };
     
-    await appendToCSV('students', newStudent);
+    await appendToJSON('students', newStudent);
     res.status(201).json(newStudent);
   } catch (err) {
     console.error(err);
@@ -209,8 +208,8 @@ app.post('/api/students', auth, async (req: any, res) => {
 // Homework API
 app.get('/api/homework', auth, async (req: any, res) => {
   try {
-    const homework = await readCSV<any>('homework');
-    const students = await readCSV<any>('students');
+    const homework = await readJSON<any>('homework');
+    const students = await readJSON<any>('students');
     
     // Filter by tutor/parent
     let filteredHomework = homework;
@@ -239,7 +238,7 @@ app.post('/api/homework', auth, async (req: any, res) => {
     }
     
     // Verify if user has access to this student
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === studentId);
     
     if (!student) {
@@ -266,7 +265,7 @@ app.post('/api/homework', auth, async (req: any, res) => {
       createdAt: new Date().toISOString()
     };
     
-    await appendToCSV('homework', newHomework);
+    await appendToJSON('homework', newHomework);
     res.status(201).json(newHomework);
   } catch (err) {
     console.error(err);
@@ -284,7 +283,7 @@ app.patch('/api/homework/:id', auth, async (req: any, res) => {
       return res.status(403).json({ msg: 'Only tutors can update homework status' });
     }
     
-    const homework = await readCSV<any>('homework');
+    const homework = await readJSON<any>('homework');
     const homeworkIndex = homework.findIndex(h => h.id === req.params.id);
     
     if (homeworkIndex === -1) {
@@ -292,7 +291,7 @@ app.patch('/api/homework/:id', auth, async (req: any, res) => {
     }
     
     // Verify tutor has access to this student's homework
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === homework[homeworkIndex].studentId);
     
     if (student.tutorId !== req.user.id) {
@@ -306,7 +305,7 @@ app.patch('/api/homework/:id', auth, async (req: any, res) => {
       updatedAt: new Date().toISOString()
     };
     
-    await writeCSV('homework', homework);
+    await writeJSON('homework', homework);
     res.json(homework[homeworkIndex]);
   } catch (err) {
     console.error(err);
@@ -317,8 +316,8 @@ app.patch('/api/homework/:id', auth, async (req: any, res) => {
 // Exams API
 app.get('/api/exams', auth, async (req: any, res) => {
   try {
-    const exams = await readCSV<any>('exams');
-    const students = await readCSV<any>('students');
+    const exams = await readJSON<any>('exams');
+    const students = await readJSON<any>('students');
     
     // Filter by tutor/parent
     let filteredExams = exams;
@@ -347,7 +346,7 @@ app.post('/api/exams', auth, async (req: any, res) => {
     }
     
     // Verify if user has access to this student
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === studentId);
     
     if (!student) {
@@ -374,7 +373,7 @@ app.post('/api/exams', auth, async (req: any, res) => {
       createdAt: new Date().toISOString()
     };
     
-    await appendToCSV('exams', newExam);
+    await appendToJSON('exams', newExam);
     res.status(201).json(newExam);
   } catch (err) {
     console.error(err);
@@ -392,7 +391,7 @@ app.patch('/api/exams/:id', auth, async (req: any, res) => {
       return res.status(403).json({ msg: 'Only tutors can update exam scores' });
     }
     
-    const exams = await readCSV<any>('exams');
+    const exams = await readJSON<any>('exams');
     const examIndex = exams.findIndex(e => e.id === req.params.id);
     
     if (examIndex === -1) {
@@ -400,7 +399,7 @@ app.patch('/api/exams/:id', auth, async (req: any, res) => {
     }
     
     // Verify tutor has access to this student's exam
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === exams[examIndex].studentId);
     
     if (student.tutorId !== req.user.id) {
@@ -414,7 +413,7 @@ app.patch('/api/exams/:id', auth, async (req: any, res) => {
       updatedAt: new Date().toISOString()
     };
     
-    await writeCSV('exams', exams);
+    await writeJSON('exams', exams);
     res.json(exams[examIndex]);
   } catch (err) {
     console.error(err);
@@ -425,8 +424,8 @@ app.patch('/api/exams/:id', auth, async (req: any, res) => {
 // Attendance API
 app.get('/api/attendance', auth, async (req: any, res) => {
   try {
-    const attendance = await readCSV<any>('attendance');
-    const students = await readCSV<any>('students');
+    const attendance = await readJSON<any>('attendance');
+    const students = await readJSON<any>('students');
     
     // Filter by tutor/parent
     let filteredAttendance = attendance;
@@ -460,7 +459,7 @@ app.post('/api/attendance', auth, async (req: any, res) => {
     }
     
     // Verify tutor has access to this student
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === studentId);
     
     if (!student) {
@@ -481,7 +480,7 @@ app.post('/api/attendance', auth, async (req: any, res) => {
       createdAt: new Date().toISOString()
     };
     
-    await appendToCSV('attendance', newAttendance);
+    await appendToJSON('attendance', newAttendance);
     res.status(201).json(newAttendance);
   } catch (err) {
     console.error(err);
@@ -492,8 +491,8 @@ app.post('/api/attendance', auth, async (req: any, res) => {
 // Fees API
 app.get('/api/fees', auth, async (req: any, res) => {
   try {
-    const fees = await readCSV<any>('fees');
-    const students = await readCSV<any>('students');
+    const fees = await readJSON<any>('fees');
+    const students = await readJSON<any>('students');
     
     // Filter by tutor/parent
     let filteredFees = fees;
@@ -527,7 +526,7 @@ app.post('/api/fees', auth, async (req: any, res) => {
     }
     
     // Verify tutor has access to this student
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === studentId);
     
     if (!student) {
@@ -549,7 +548,7 @@ app.post('/api/fees', auth, async (req: any, res) => {
       createdAt: new Date().toISOString()
     };
     
-    await appendToCSV('fees', newFee);
+    await appendToJSON('fees', newFee);
     res.status(201).json(newFee);
   } catch (err) {
     console.error(err);
@@ -567,7 +566,7 @@ app.patch('/api/fees/:id', auth, async (req: any, res) => {
       return res.status(403).json({ msg: 'Only tutors can update fee status' });
     }
     
-    const fees = await readCSV<any>('fees');
+    const fees = await readJSON<any>('fees');
     const feeIndex = fees.findIndex(f => f.id === req.params.id);
     
     if (feeIndex === -1) {
@@ -575,7 +574,7 @@ app.patch('/api/fees/:id', auth, async (req: any, res) => {
     }
     
     // Verify tutor has access to this student's fee
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === fees[feeIndex].studentId);
     
     if (student.tutorId !== req.user.id) {
@@ -589,7 +588,7 @@ app.patch('/api/fees/:id', auth, async (req: any, res) => {
       updatedAt: new Date().toISOString()
     };
     
-    await writeCSV('fees', fees);
+    await writeJSON('fees', fees);
     res.json(fees[feeIndex]);
   } catch (err) {
     console.error(err);
@@ -600,8 +599,8 @@ app.patch('/api/fees/:id', auth, async (req: any, res) => {
 // Performance API
 app.get('/api/performance', auth, async (req: any, res) => {
   try {
-    const performance = await readCSV<any>('performance');
-    const students = await readCSV<any>('students');
+    const performance = await readJSON<any>('performance');
+    const students = await readJSON<any>('students');
     
     // Filter by tutor/parent
     let filteredPerformance = performance;
@@ -635,7 +634,7 @@ app.post('/api/performance', auth, async (req: any, res) => {
     }
     
     // Verify tutor has access to this student
-    const students = await readCSV<any>('students');
+    const students = await readJSON<any>('students');
     const student = students.find(s => s.id === studentId);
     
     if (!student) {
@@ -656,7 +655,7 @@ app.post('/api/performance', auth, async (req: any, res) => {
       createdAt: new Date().toISOString()
     };
     
-    await appendToCSV('performance', newPerformance);
+    await appendToJSON('performance', newPerformance);
     res.status(201).json(newPerformance);
   } catch (err) {
     console.error(err);
