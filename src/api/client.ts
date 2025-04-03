@@ -43,28 +43,6 @@ export const getCurrentUser = () => {
   }
 };
 
-// Mock API responses for testing when the server is unavailable
-const mockResponses = {
-  register: {
-    token: 'mock-token',
-    user: {
-      id: 'mock-id',
-      name: 'Mock User',
-      email: 'mock@example.com',
-      role: 'tutor'
-    }
-  },
-  login: {
-    token: 'mock-token',
-    user: {
-      id: 'mock-id',
-      name: 'Mock User',
-      email: 'mock@example.com',
-      role: 'tutor'
-    }
-  }
-};
-
 // Function to create a timeout promise
 const timeoutPromise = (ms: number) => {
   return new Promise((_, reject) => {
@@ -78,8 +56,7 @@ const apiClient = async (
   endpoint: string,
   method: string = 'GET',
   data?: any,
-  requiresAuth: boolean = true,
-  useMock: boolean = false
+  requiresAuth: boolean = true
 ) => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -99,13 +76,6 @@ const apiClient = async (
   };
 
   try {
-    // If using mock response, return it immediately
-    if (useMock) {
-      console.log('Using mock response for', endpoint);
-      // @ts-ignore
-      return mockResponses[endpoint.split('/').pop()];
-    }
-
     // Create a fetch request with timeout
     const fetchPromise = fetch(`${API_URL}${endpoint}`, config);
     const response = await Promise.race([fetchPromise, timeoutPromise(TIMEOUT_MS)]) as Response;
@@ -119,20 +89,6 @@ const apiClient = async (
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An error occurred';
     console.error('API error:', message);
-    
-    // If fetch failed (likely server down), try to use mock response for critical paths
-    if ((error instanceof Error && error.message.includes('Failed to fetch')) || 
-        (error instanceof Error && error.message.includes('timed out'))) {
-      
-      // Only use mocks for register and login
-      if (endpoint === '/users/register' || endpoint === '/users/login') {
-        console.log('Server unavailable, using mock response');
-        toast.info('Server unavailable, using demo mode');
-        // @ts-ignore
-        return mockResponses[endpoint.split('/').pop()];
-      }
-    }
-    
     toast.error(message);
     throw error;
   }
@@ -140,8 +96,8 @@ const apiClient = async (
 
 export default {
   // Auth
-  register: (userData: any) => apiClient('/users/register', 'POST', userData, false, true),
-  login: (credentials: any) => apiClient('/users/login', 'POST', credentials, false, true),
+  register: (userData: any) => apiClient('/users/register', 'POST', userData, false),
+  login: (credentials: any) => apiClient('/users/login', 'POST', credentials, false),
   
   // Students
   getStudents: () => apiClient('/students'),
