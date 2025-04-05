@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
@@ -22,13 +21,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { PlusCircle, User } from 'lucide-react';
 
@@ -88,15 +87,6 @@ const Students = () => {
       console.error('Error adding student:', error);
     }
   };
-
-  if (user?.role !== 'tutor') {
-    return (
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
-        <p>Only tutors can access the students management page.</p>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
