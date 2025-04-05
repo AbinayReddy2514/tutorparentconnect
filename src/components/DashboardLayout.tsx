@@ -11,21 +11,31 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     const getProfile = async () => {
       if (user) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
         
-        setProfile(data);
+        if (data && !error) {
+          setProfile(data as Profile);
+        }
       }
     };
     

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import apiClient from '../api/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -13,10 +14,24 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
+interface Profile {
+  name: string;
+  role: string;
+}
+
+interface DashboardStats {
+  students: number;
+  attendance: number;
+  homeworks: number;
+  exams: number;
+  pendingFees: number;
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
     students: 0,
     attendance: 0,
     homeworks: 0,
@@ -24,6 +39,28 @@ const Dashboard = () => {
     pendingFees: 0
   });
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('name, role')
+            .eq('id', user.id)
+            .single();
+            
+          if (data && !error) {
+            setProfile(data as Profile);
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -65,7 +102,7 @@ const Dashboard = () => {
     {
       title: 'Students',
       value: stats.students,
-      description: user?.role === 'tutor' ? 'Total students' : 'Children enrolled',
+      description: profile?.role === 'tutor' ? 'Total students' : 'Children enrolled',
       icon: <Users className="h-8 w-8 text-tutor-primary" />,
       onClick: () => navigate('/students')
     },
@@ -113,9 +150,9 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Welcome back, {user?.name}!</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Welcome back, {profile?.name || 'User'}!</h2>
         <p className="text-muted-foreground">
-          Here's an overview of {user?.role === 'tutor' ? 'your students' : 'your child\'s'} progress
+          Here's an overview of {profile?.role === 'tutor' ? 'your students' : 'your child\'s'} progress
         </p>
       </div>
 
@@ -138,7 +175,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {user?.role === 'tutor' && (
+      {profile?.role === 'tutor' && (
         <Card>
           <CardHeader>
             <CardTitle>Alerts</CardTitle>

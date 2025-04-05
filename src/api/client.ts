@@ -1,17 +1,11 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Database } from '@/integrations/supabase/types';
 
-export const getAuthToken = () => {
-  return localStorage.getItem('supabase.auth.token');
-};
-
-export const setAuthToken = (token: string) => {
-  localStorage.setItem('supabase.auth.token', token);
-};
-
-export const removeAuthToken = () => {
-  localStorage.removeItem('supabase.auth.token');
+export const getAuthToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token || null;
 };
 
 export const isAuthenticated = async () => {
@@ -42,7 +36,7 @@ export const getCurrentUser = async () => {
     .eq('id', user.id)
     .single();
     
-  return profile ? { ...profile, id: user.id } : null;
+  return profile ? { ...profile } : null;
 };
 
 const handleError = (error: any) => {
@@ -53,47 +47,6 @@ const handleError = (error: any) => {
 };
 
 const apiClient = {
-  // Auth
-  register: async (userData: any) => {
-    try {
-      const { email, password, name, role } = userData;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role
-          }
-        }
-      });
-      
-      if (error) throw error;
-      
-      return data;
-    } catch (error) {
-      return handleError(error);
-    }
-  },
-  
-  login: async (credentials: any) => {
-    try {
-      const { email, password } = credentials;
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) throw error;
-      
-      return data;
-    } catch (error) {
-      return handleError(error);
-    }
-  },
-  
   // Students
   getStudents: async () => {
     try {
@@ -102,7 +55,7 @@ const apiClient = {
         .select('*');
         
       if (error) throw error;
-      return data;
+      return data || [];
     } catch (error) {
       return handleError(error);
     }
@@ -131,7 +84,7 @@ const apiClient = {
         .select('*');
         
       if (error) throw error;
-      return data;
+      return data || [];
     } catch (error) {
       return handleError(error);
     }
@@ -176,7 +129,7 @@ const apiClient = {
         .select('*');
         
       if (error) throw error;
-      return data;
+      return data || [];
     } catch (error) {
       return handleError(error);
     }
@@ -221,7 +174,7 @@ const apiClient = {
         .select('*');
         
       if (error) throw error;
-      return data;
+      return data || [];
     } catch (error) {
       return handleError(error);
     }
@@ -250,7 +203,7 @@ const apiClient = {
         .select('*');
         
       if (error) throw error;
-      return data;
+      return data || [];
     } catch (error) {
       return handleError(error);
     }
@@ -295,7 +248,7 @@ const apiClient = {
         .select('*');
         
       if (error) throw error;
-      return data;
+      return data || [];
     } catch (error) {
       return handleError(error);
     }

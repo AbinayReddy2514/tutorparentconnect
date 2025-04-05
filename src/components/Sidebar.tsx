@@ -16,6 +16,10 @@ import {
   Home
 } from 'lucide-react';
 
+interface Profile {
+  role: string;
+}
+
 const Sidebar = () => {
   const location = useLocation();
   const { user } = useAuth();
@@ -25,13 +29,15 @@ const Sidebar = () => {
     async function fetchProfile() {
       if (user) {
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
             .single();
             
-          setUserRole(data?.role || null);
+          if (data && !error) {
+            setUserRole(data.role);
+          }
         } catch (error) {
           console.error('Error fetching user role:', error);
         }
