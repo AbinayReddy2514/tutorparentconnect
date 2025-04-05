@@ -26,8 +26,8 @@ const Register = () => {
     try {
       setLoading(true);
       await registerUser(data);
-      toast.success('Check your email to verify your account');
-      navigate('/login');
+      // No longer need to tell them to check their email since we're directly signing them in
+      navigate('/dashboard');
     } catch (error) {
       console.error('Registration error:', error);
       // Toast is handled in the registration function

@@ -54,13 +54,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           data: {
             name,
             role
-          }
+          },
+          emailRedirectTo: window.location.origin,
         }
       });
       
       if (error) throw error;
       
-      toast.success('Registration successful');
+      // Check if user was created and handle accordingly
+      if (data.user) {
+        // Instead of waiting for confirmation, we'll directly sign in the user
+        await login({ email, password });
+        toast.success('Registration successful! You are now logged in.');
+      } else {
+        toast.success('Registration successful! Please check your email.');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
       throw error;

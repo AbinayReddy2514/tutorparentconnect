@@ -1,7 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Database } from '@/integrations/supabase/types';
 
 export const getAuthToken = async () => {
   const { data } = await supabase.auth.getSession();
@@ -21,7 +19,7 @@ export const getUserRole = async () => {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
     
   return profile?.role || null;
 };
@@ -34,7 +32,7 @@ export const getCurrentUser = async () => {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
     
   return profile ? { ...profile } : null;
 };
