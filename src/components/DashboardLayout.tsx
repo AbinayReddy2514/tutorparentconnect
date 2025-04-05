@@ -1,7 +1,8 @@
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import Sidebar from './Sidebar';
 import { Button } from '@/components/ui/button';
 import { UserIcon, LogOut } from 'lucide-react';
@@ -13,6 +14,23 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const getProfile = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        setProfile(data);
+      }
+    };
+    
+    getProfile();
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -27,12 +45,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 items-center">
               <h1 className="text-2xl font-semibold text-gray-900">
-                {user?.role === 'tutor' ? 'Tutor Dashboard' : 'Parent Dashboard'}
+                {profile?.role === 'tutor' ? 'Tutor Dashboard' : 'Parent Dashboard'}
               </h1>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <UserIcon className="h-5 w-5" />
-                  <span>{user?.name}</span>
+                  <span>{profile?.name}</span>
                 </div>
                 <Button 
                   variant="outline" 

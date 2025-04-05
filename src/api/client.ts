@@ -1,131 +1,320 @@
 
-import { toast } from "sonner";
-
-const API_URL = 'http://localhost:3001/api';
-const TIMEOUT_MS = 10000; // 10 seconds timeout
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export const getAuthToken = () => {
-  return localStorage.getItem('authToken');
+  return localStorage.getItem('supabase.auth.token');
 };
 
 export const setAuthToken = (token: string) => {
-  localStorage.setItem('authToken', token);
+  localStorage.setItem('supabase.auth.token', token);
 };
 
 export const removeAuthToken = () => {
-  localStorage.removeItem('authToken');
+  localStorage.removeItem('supabase.auth.token');
 };
 
-export const isAuthenticated = () => {
-  return !!getAuthToken();
+export const isAuthenticated = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return !!session;
 };
 
-export const getUserRole = () => {
-  const userString = localStorage.getItem('user');
-  if (!userString) return null;
-  try {
-    const user = JSON.parse(userString);
-    return user.role;
-  } catch (error) {
-    console.error('Error parsing user data:', error);
-    return null;
-  }
-};
-
-export const getCurrentUser = () => {
-  const userString = localStorage.getItem('user');
-  if (!userString) return null;
-  try {
-    return JSON.parse(userString);
-  } catch (error) {
-    console.error('Error parsing user data:', error);
-    return null;
-  }
-};
-
-// Function to create a timeout promise
-const timeoutPromise = (ms: number) => {
-  return new Promise((_, reject) => {
-    setTimeout(() => {
-      reject(new Error(`Request timed out after ${ms}ms`));
-    }, ms);
-  });
-};
-
-const apiClient = async (
-  endpoint: string,
-  method: string = 'GET',
-  data?: any,
-  requiresAuth: boolean = true
-) => {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-
-  if (requiresAuth) {
-    const token = getAuthToken();
-    if (token) {
-      headers['x-auth-token'] = token;
-    }
-  }
-
-  const config: RequestInit = {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-  };
-
-  try {
-    // Create a fetch request with timeout
-    const fetchPromise = fetch(`${API_URL}${endpoint}`, config);
-    const response = await Promise.race([fetchPromise, timeoutPromise(TIMEOUT_MS)]) as Response;
+export const getUserRole = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.msg || `Error ${response.status}: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'An error occurred';
-    console.error('API error:', message);
-    toast.error(message);
-    throw error;
-  }
+  return profile?.role || null;
 };
 
-export default {
+export const getCurrentUser = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+    
+  return profile ? { ...profile, id: user.id } : null;
+};
+
+const handleError = (error: any) => {
+  const message = error?.message || 'An error occurred';
+  console.error('API error:', message);
+  toast.error(message);
+  throw error;
+};
+
+const apiClient = {
   // Auth
-  register: (userData: any) => apiClient('/users/register', 'POST', userData, false),
-  login: (credentials: any) => apiClient('/users/login', 'POST', credentials, false),
+  register: async (userData: any) => {
+    try {
+      const { email, password, name, role } = userData;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  login: async (credentials: any) => {
+    try {
+      const { email, password } = credentials;
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
   
   // Students
-  getStudents: () => apiClient('/students'),
-  addStudent: (studentData: any) => apiClient('/students', 'POST', studentData),
+  getStudents: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*');
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  addStudent: async (studentData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .insert(studentData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
   
   // Homework
-  getHomework: () => apiClient('/homework'),
-  addHomework: (homeworkData: any) => apiClient('/homework', 'POST', homeworkData),
-  updateHomeworkStatus: (id: string, status: string) => 
-    apiClient(`/homework/${id}`, 'PATCH', { status }),
+  getHomework: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('homework')
+        .select('*');
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  addHomework: async (homeworkData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('homework')
+        .insert(homeworkData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  updateHomeworkStatus: async (id: string, status: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('homework')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
   
   // Exams
-  getExams: () => apiClient('/exams'),
-  addExam: (examData: any) => apiClient('/exams', 'POST', examData),
-  updateExamScore: (id: string, score: number) => 
-    apiClient(`/exams/${id}`, 'PATCH', { score }),
+  getExams: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .select('*');
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  addExam: async (examData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .insert(examData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  updateExamScore: async (id: string, score: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .update({ score })
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
   
   // Attendance
-  getAttendance: () => apiClient('/attendance'),
-  markAttendance: (attendanceData: any) => apiClient('/attendance', 'POST', attendanceData),
+  getAttendance: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*');
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  markAttendance: async (attendanceData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('attendance')
+        .insert(attendanceData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
   
   // Fees
-  getFees: () => apiClient('/fees'),
-  addFee: (feeData: any) => apiClient('/fees', 'POST', feeData),
-  updateFeeStatus: (id: string, status: string) => 
-    apiClient(`/fees/${id}`, 'PATCH', { status }),
+  getFees: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('fees')
+        .select('*');
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  addFee: async (feeData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('fees')
+        .insert(feeData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  updateFeeStatus: async (id: string, status: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('fees')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
   
   // Performance
-  getPerformance: () => apiClient('/performance'),
-  addPerformance: (performanceData: any) => apiClient('/performance', 'POST', performanceData),
+  getPerformance: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('performance')
+        .select('*');
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  addPerformance: async (performanceData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('performance')
+        .insert(performanceData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  }
 };
+
+export default apiClient;

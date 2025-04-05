@@ -1,7 +1,9 @@
 
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getUserRole } from '../api/client';
 import { cn } from '@/lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, 
   Book, 
@@ -16,7 +18,28 @@ import {
 
 const Sidebar = () => {
   const location = useLocation();
-  const userRole = getUserRole();
+  const { user } = useAuth();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  
+  useEffect(() => {
+    async function fetchProfile() {
+      if (user) {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+            
+          setUserRole(data?.role || null);
+        } catch (error) {
+          console.error('Error fetching user role:', error);
+        }
+      }
+    }
+    
+    fetchProfile();
+  }, [user]);
   
   const tutorLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
