@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +10,18 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
+type FormValues = {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+};
+
 const Register = () => {
   const { register: registerUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors }, watch } = useForm({
+  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormValues>({
     defaultValues: {
       role: 'tutor' // Set default value for role
     }
@@ -28,15 +34,13 @@ const Register = () => {
     return null;
   }
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: FormValues) => {
     try {
       setLoading(true);
       await registerUser(data);
-      // No longer need to tell them to check their email since we're directly signing them in
       navigate('/dashboard');
     } catch (error) {
       console.error('Registration error:', error);
-      // Toast is handled in the registration function
     } finally {
       setLoading(false);
     }
@@ -66,7 +70,7 @@ const Register = () => {
                   })}
                 />
                 {errors.name && (
-                  <p className="text-sm text-red-500">{errors.name.message as string}</p>
+                  <p className="text-sm text-red-500">{errors.name.message}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -84,7 +88,7 @@ const Register = () => {
                   })}
                 />
                 {errors.email && (
-                  <p className="text-sm text-red-500">{errors.email.message as string}</p>
+                  <p className="text-sm text-red-500">{errors.email.message}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -102,7 +106,7 @@ const Register = () => {
                   })}
                 />
                 {errors.password && (
-                  <p className="text-sm text-red-500">{errors.password.message as string}</p>
+                  <p className="text-sm text-red-500">{errors.password.message}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -128,7 +132,7 @@ const Register = () => {
                   </div>
                 </RadioGroup>
                 {errors.role && (
-                  <p className="text-sm text-red-500">{errors.role.message as string}</p>
+                  <p className="text-sm text-red-500">{errors.role.message}</p>
                 )}
               </div>
               <Button 
