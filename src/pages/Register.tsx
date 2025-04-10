@@ -15,7 +15,13 @@ const Register = () => {
   const { register: registerUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, watch } = useForm({
+    defaultValues: {
+      role: 'tutor' // Set default value for role
+    }
+  });
+  
+  const selectedRole = watch('role');
 
   if (isAuthenticated) {
     navigate('/dashboard');
@@ -101,13 +107,23 @@ const Register = () => {
               </div>
               <div className="space-y-2">
                 <Label>I am a</Label>
-                <RadioGroup defaultValue="tutor" {...register('role', { required: 'Role is required' })}>
+                <RadioGroup defaultValue="tutor">
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="tutor" id="tutor" />
+                    <RadioGroupItem 
+                      value="tutor" 
+                      id="tutor" 
+                      {...register('role', { required: 'Role is required' })}
+                      checked={selectedRole === 'tutor'}
+                    />
                     <Label htmlFor="tutor" className="cursor-pointer">Tutor</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="parent" id="parent" />
+                    <RadioGroupItem 
+                      value="parent" 
+                      id="parent" 
+                      {...register('role', { required: 'Role is required' })}
+                      checked={selectedRole === 'parent'}
+                    />
                     <Label htmlFor="parent" className="cursor-pointer">Parent</Label>
                   </div>
                 </RadioGroup>

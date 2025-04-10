@@ -1,7 +1,5 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient from '../api/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,15 +141,15 @@ const Students = () => {
     try {
       setLoading(true);
       // First check if parent exists with the given email
-      const { data: existingParent, error: parentError } = await supabase
+      const { data: existingParent, error: parentLookupError } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', newStudent.parentEmail)
-        .single();
+        .maybeSingle();
         
       let parentId = null;
       
-      if (parentError && parentError.code === 'PGRST116') {
+      if (!existingParent) {
         // Parent doesn't exist, create a temporary account
         const randomPassword = Math.random().toString(36).slice(-8);
         
@@ -171,13 +169,28 @@ const Students = () => {
           throw authError;
         }
         
-        parentId = authData.user?.id;
+        if (!authData.user) {
+          throw new Error("Failed to create parent account");
+        }
         
-        // Note: A trigger will create the profile row
+        parentId = authData.user.id;
+        
+        // Create profile entry manually in case the trigger fails
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: parentId,
+            email: newStudent.parentEmail,
+            name: `Parent of ${newStudent.name}`,
+            role: 'parent'
+          });
+          
+        if (profileError) {
+          console.warn("Profile creation error:", profileError);
+          // Continue anyway, might be due to the trigger already creating it
+        }
         
         toast.info(`Parent account created with email: ${newStudent.parentEmail}. Temporary password: ${randomPassword}`);
-      } else if (parentError) {
-        throw parentError;
       } else {
         parentId = existingParent.id;
       }

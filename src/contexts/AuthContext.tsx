@@ -49,6 +49,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const { email, password, name, role } = userData;
       
+      console.log('Registration data:', { email, name, role });
+      
       // Email verification is disabled
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -57,17 +59,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           data: {
             name,
             role
-          },
-          emailRedirectTo: window.location.origin
+          }
         }
       });
       
       if (error) throw error;
       
       if (data?.user) {
-        // Auto-login the user after registration
-        await login({ email, password });
-        toast.success('Registration successful! You are now logged in.');
+        // Instead of auto-login, let's directly consider the user logged in
+        // The onAuthStateChange listener will update the state
+        toast.success('Registration successful!');
       } else {
         toast.error('Registration failed unexpectedly.');
       }
