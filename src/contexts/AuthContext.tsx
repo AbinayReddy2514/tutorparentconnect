@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log('Auth state changed:', event, currentSession?.user?.id);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         setIsAuthenticated(!!currentSession?.user);
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log('Initial session check:', currentSession?.user?.id);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setIsAuthenticated(!!currentSession?.user);
@@ -47,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const { email, password, name, role } = userData;
       
-      // Email verification is disabled, so we'll directly sign up the user
+      // Email verification is disabled
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -56,15 +58,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             name,
             role
           },
+          emailRedirectTo: window.location.origin
         }
       });
       
       if (error) throw error;
       
-      // After signup is successful, immediately log the user in
-      await login({ email, password });
-      toast.success('Registration successful! You are now logged in.');
+      if (data?.user) {
+        // Auto-login the user after registration
+        await login({ email, password });
+        toast.success('Registration successful! You are now logged in.');
+      } else {
+        toast.error('Registration failed unexpectedly.');
+      }
     } catch (error: any) {
+      console.error('Registration error:', error);
       toast.error(error.message || 'Registration failed');
       throw error;
     } finally {
@@ -77,15 +85,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const { email, password } = credentials;
       
+      console.log('Attempting login for:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
       
+      console.log('Login successful:', data.user?.id);
       toast.success('Login successful');
     } catch (error: any) {
+      console.error('Login error details:', error);
       toast.error(error.message || 'Login failed');
       throw error;
     } finally {

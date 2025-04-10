@@ -13,6 +13,7 @@ const Login = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   // Redirect if already authenticated
@@ -24,11 +25,13 @@ const Login = () => {
   const onSubmit = async (data: any) => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('Attempting login with:', data.email);
       await login(data);
       navigate('/dashboard');
-    } catch (error) {
-      console.error('Login error:', error);
-      // Toast is handled in the login function
+    } catch (error: any) {
+      console.error('Login error in component:', error);
+      setError(error.message || 'Failed to login. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -43,6 +46,11 @@ const Login = () => {
             <CardDescription>Login to your account to continue</CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-3 mb-4">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

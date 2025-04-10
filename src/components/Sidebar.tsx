@@ -16,10 +16,6 @@ import {
   Home
 } from 'lucide-react';
 
-interface Profile {
-  role: string;
-}
-
 const Sidebar = () => {
   const location = useLocation();
   const { user } = useAuth();
@@ -29,6 +25,14 @@ const Sidebar = () => {
     async function fetchProfile() {
       if (user) {
         try {
+          // Get role from user metadata
+          const role = user.user_metadata?.role;
+          if (role) {
+            setUserRole(role);
+            return;
+          }
+          
+          // Fallback to profiles table if not in metadata
           const { data, error } = await supabase
             .from('profiles')
             .select('role')
@@ -71,6 +75,8 @@ const Sidebar = () => {
   ];
   
   const links = userRole === 'tutor' ? tutorLinks : parentLinks;
+  
+  console.log('User role:', userRole);
 
   return (
     <div className="bg-white shadow-sm w-64 flex-shrink-0 hidden md:block">

@@ -38,13 +38,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { supabase } from '@/integrations/supabase/client';
 
 interface Student {
   id: string;
   name: string;
   school: string;
   grade: string;
-  parentEmail: string;
+  parentEmail?: string;
+  parent_id?: string;
 }
 
 const Students = () => {
@@ -61,6 +63,7 @@ const Students = () => {
     parentEmail: ''
   });
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
+  const [parentProfiles, setParentProfiles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchStudents();
@@ -69,10 +72,49 @@ const Students = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getStudents();
-      setStudents(data);
+      // Fetch students directly from Supabase
+      const { data, error } = await supabase
+        .from('students')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching students:', error);
+        toast.error('Failed to load students');
+        return;
+      }
+      
+      // Fetch parent emails for each student
+      const parentIds = data.map(s => s.parent_id).filter(Boolean);
+      const parentEmailMap: Record<string, string> = {};
+      
+      if (parentIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('id', parentIds);
+          
+        if (!profilesError && profiles) {
+          profiles.forEach(profile => {
+            parentEmailMap[profile.id] = profile.email;
+          });
+          setParentProfiles(parentEmailMap);
+        }
+      }
+      
+      // Transform data to match Student interface
+      const formattedStudents: Student[] = data.map(student => ({
+        id: student.id,
+        name: student.name,
+        school: student.school,
+        grade: student.grade,
+        parent_id: student.parent_id,
+        parentEmail: student.parent_id ? parentEmailMap[student.parent_id] : ''
+      }));
+      
+      setStudents(formattedStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
+      toast.error('Failed to load students');
     } finally {
       setLoading(false);
     }
@@ -99,7 +141,64 @@ const Students = () => {
     }
     
     try {
-      await apiClient.addStudent(newStudent);
+      setLoading(true);
+      // First check if parent exists with the given email
+      const { data: existingParent, error: parentError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', newStudent.parentEmail)
+        .single();
+        
+      let parentId = null;
+      
+      if (parentError && parentError.code === 'PGRST116') {
+        // Parent doesn't exist, create a temporary account
+        const randomPassword = Math.random().toString(36).slice(-8);
+        
+        // Register new user with Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: newStudent.parentEmail,
+          password: randomPassword,
+          options: {
+            data: {
+              name: `Parent of ${newStudent.name}`,
+              role: 'parent'
+            }
+          }
+        });
+        
+        if (authError) {
+          throw authError;
+        }
+        
+        parentId = authData.user?.id;
+        
+        // Note: A trigger will create the profile row
+        
+        toast.info(`Parent account created with email: ${newStudent.parentEmail}. Temporary password: ${randomPassword}`);
+      } else if (parentError) {
+        throw parentError;
+      } else {
+        parentId = existingParent.id;
+      }
+      
+      // Create the student with the parent ID
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .insert({
+          name: newStudent.name,
+          school: newStudent.school,
+          grade: newStudent.grade,
+          parent_id: parentId,
+          tutor_id: user?.id
+        })
+        .select()
+        .single();
+        
+      if (studentError) {
+        throw studentError;
+      }
+      
       toast.success('Student added successfully');
       setAddDialogOpen(false);
       setNewStudent({
@@ -108,9 +207,13 @@ const Students = () => {
         grade: '',
         parentEmail: ''
       });
+      
       await fetchStudents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding student:', error);
+      toast.error(error.message || 'Failed to add student');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -123,13 +226,30 @@ const Students = () => {
     }
     
     try {
-      await apiClient.updateStudent(currentStudent.id, currentStudent);
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('students')
+        .update({
+          name: currentStudent.name,
+          school: currentStudent.school,
+          grade: currentStudent.grade
+        })
+        .eq('id', currentStudent.id);
+        
+      if (error) {
+        throw error;
+      }
+      
       toast.success('Student updated successfully');
       setEditDialogOpen(false);
       setCurrentStudent(null);
       await fetchStudents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating student:', error);
+      toast.error(error.message || 'Failed to update student');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -137,13 +257,26 @@ const Students = () => {
     if (!currentStudent) return;
     
     try {
-      await apiClient.deleteStudent(currentStudent.id);
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', currentStudent.id);
+        
+      if (error) {
+        throw error;
+      }
+      
       toast.success('Student deleted successfully');
       setDeleteDialogOpen(false);
       setCurrentStudent(null);
       await fetchStudents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting student:', error);
+      toast.error(error.message || 'Failed to delete student');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -225,8 +358,17 @@ const Students = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" className="bg-tutor-primary hover:bg-blue-600">
-                  Add Student
+                <Button 
+                  type="submit" 
+                  className="bg-tutor-primary hover:bg-blue-600"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="animate-spin mr-2">○</span>
+                      Adding...
+                    </>
+                  ) : 'Add Student'}
                 </Button>
               </DialogFooter>
             </form>
@@ -272,7 +414,7 @@ const Students = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students.map((student: any) => (
+                {students.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center">
@@ -282,7 +424,9 @@ const Students = () => {
                     </TableCell>
                     <TableCell>{student.school}</TableCell>
                     <TableCell>{student.grade}</TableCell>
-                    <TableCell className="text-blue-500">{student.parentEmail}</TableCell>
+                    <TableCell className="text-blue-500">
+                      {student.parentEmail || (student.parent_id && parentProfiles[student.parent_id]) || 'Unknown'}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
                         <TooltipProvider>
@@ -374,8 +518,7 @@ const Students = () => {
                     id="edit-parentEmail"
                     name="parentEmail"
                     type="email"
-                    value={currentStudent.parentEmail}
-                    onChange={handleEditInputChange}
+                    value={currentStudent.parentEmail || (currentStudent.parent_id && parentProfiles[currentStudent.parent_id]) || ''}
                     disabled
                   />
                   <p className="text-xs text-gray-500">Parent email cannot be changed</p>
@@ -385,8 +528,17 @@ const Students = () => {
                 <DialogClose asChild>
                   <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button type="submit" className="bg-tutor-primary hover:bg-blue-600">
-                  Save Changes
+                <Button 
+                  type="submit" 
+                  className="bg-tutor-primary hover:bg-blue-600"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="animate-spin mr-2">○</span>
+                      Saving...
+                    </>
+                  ) : 'Save Changes'}
                 </Button>
               </DialogFooter>
             </form>
@@ -410,8 +562,14 @@ const Students = () => {
             <Button 
               variant="destructive"
               onClick={handleDeleteStudent}
+              disabled={loading}
             >
-              Delete
+              {loading ? (
+                <>
+                  <span className="animate-spin mr-2">○</span>
+                  Deleting...
+                </>
+              ) : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

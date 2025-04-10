@@ -27,6 +27,22 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   useEffect(() => {
     const getProfile = async () => {
       if (user) {
+        // Check if role and name are in user metadata
+        const name = user.user_metadata?.name;
+        const role = user.user_metadata?.role;
+        
+        if (name && role) {
+          setProfile({
+            id: user.id,
+            name,
+            email: user.email || '',
+            role,
+            created_at: user.created_at || ''
+          });
+          return;
+        }
+        
+        // Fallback to profiles table
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -60,7 +76,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <UserIcon className="h-5 w-5" />
-                  <span>{profile?.name}</span>
+                  <span>{profile?.name || 'User'}</span>
                 </div>
                 <Button 
                   variant="outline" 
