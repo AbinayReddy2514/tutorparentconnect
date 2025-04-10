@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
@@ -20,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -29,19 +31,36 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { PlusCircle, User } from 'lucide-react';
+import { PlusCircle, User, Edit, Trash2 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+interface Student {
+  id: string;
+  name: string;
+  school: string;
+  grade: string;
+  parentEmail: string;
+}
 
 const Students = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [newStudent, setNewStudent] = useState({
     name: '',
     school: '',
     grade: '',
     parentEmail: ''
   });
+  const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -64,7 +83,14 @@ const Students = () => {
     setNewStudent(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (currentStudent) {
+      setCurrentStudent({ ...currentStudent, [name]: value });
+    }
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newStudent.name || !newStudent.school || !newStudent.grade || !newStudent.parentEmail) {
@@ -75,7 +101,7 @@ const Students = () => {
     try {
       await apiClient.addStudent(newStudent);
       toast.success('Student added successfully');
-      setDialogOpen(false);
+      setAddDialogOpen(false);
       setNewStudent({
         name: '',
         school: '',
@@ -86,6 +112,49 @@ const Students = () => {
     } catch (error) {
       console.error('Error adding student:', error);
     }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentStudent || !currentStudent.name || !currentStudent.school || !currentStudent.grade) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    try {
+      await apiClient.updateStudent(currentStudent.id, currentStudent);
+      toast.success('Student updated successfully');
+      setEditDialogOpen(false);
+      setCurrentStudent(null);
+      await fetchStudents();
+    } catch (error) {
+      console.error('Error updating student:', error);
+    }
+  };
+
+  const handleDeleteStudent = async () => {
+    if (!currentStudent) return;
+    
+    try {
+      await apiClient.deleteStudent(currentStudent.id);
+      toast.success('Student deleted successfully');
+      setDeleteDialogOpen(false);
+      setCurrentStudent(null);
+      await fetchStudents();
+    } catch (error) {
+      console.error('Error deleting student:', error);
+    }
+  };
+
+  const openEditDialog = (student: Student) => {
+    setCurrentStudent(student);
+    setEditDialogOpen(true);
+  };
+
+  const openDeleteDialog = (student: Student) => {
+    setCurrentStudent(student);
+    setDeleteDialogOpen(true);
   };
 
   if (loading) {
@@ -101,7 +170,7 @@ const Students = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Students</h2>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-tutor-primary hover:bg-blue-600">
               <PlusCircle className="h-4 w-4 mr-2" />
@@ -115,7 +184,7 @@ const Students = () => {
                 Add a new student to your tuition program.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleAddSubmit}>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="name">Student Name</Label>
@@ -175,7 +244,7 @@ const Students = () => {
           </CardHeader>
           <CardContent className="flex justify-center py-6">
             <Button 
-              onClick={() => setDialogOpen(true)}
+              onClick={() => setAddDialogOpen(true)}
               className="bg-tutor-primary hover:bg-blue-600"
             >
               <PlusCircle className="h-4 w-4 mr-2" />
@@ -199,6 +268,7 @@ const Students = () => {
                   <TableHead>School</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead>Parent Email</TableHead>
+                  <TableHead className="w-24 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -213,6 +283,44 @@ const Students = () => {
                     <TableCell>{student.school}</TableCell>
                     <TableCell>{student.grade}</TableCell>
                     <TableCell className="text-blue-500">{student.parentEmail}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openEditDialog(student)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit Student</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 text-red-500 hover:text-red-600"
+                                onClick={() => openDeleteDialog(student)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete Student</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -220,6 +328,94 @@ const Students = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Student Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Student</DialogTitle>
+            <DialogDescription>
+              Update student information.
+            </DialogDescription>
+          </DialogHeader>
+          {currentStudent && (
+            <form onSubmit={handleEditSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-name">Student Name</Label>
+                  <Input
+                    id="edit-name"
+                    name="name"
+                    value={currentStudent.name}
+                    onChange={handleEditInputChange}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-school">School</Label>
+                  <Input
+                    id="edit-school"
+                    name="school"
+                    value={currentStudent.school}
+                    onChange={handleEditInputChange}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-grade">Grade/Class</Label>
+                  <Input
+                    id="edit-grade"
+                    name="grade"
+                    value={currentStudent.grade}
+                    onChange={handleEditInputChange}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-parentEmail">Parent Email</Label>
+                  <Input
+                    id="edit-parentEmail"
+                    name="parentEmail"
+                    type="email"
+                    value={currentStudent.parentEmail}
+                    onChange={handleEditInputChange}
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500">Parent email cannot be changed</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button type="submit" className="bg-tutor-primary hover:bg-blue-600">
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Student Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this student? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteStudent}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const { email, password, name, role } = userData;
       
+      // Email verification is disabled, so we'll directly sign up the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -55,20 +56,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             name,
             role
           },
-          emailRedirectTo: window.location.origin,
         }
       });
       
       if (error) throw error;
       
-      // Check if user was created and handle accordingly
-      if (data.user) {
-        // Instead of waiting for confirmation, we'll directly sign in the user
-        await login({ email, password });
-        toast.success('Registration successful! You are now logged in.');
-      } else {
-        toast.success('Registration successful! Please check your email.');
-      }
+      // After signup is successful, immediately log the user in
+      await login({ email, password });
+      toast.success('Registration successful! You are now logged in.');
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
       throw error;

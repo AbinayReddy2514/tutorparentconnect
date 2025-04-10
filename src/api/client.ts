@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -69,6 +70,39 @@ const apiClient = {
         
       if (error) throw error;
       return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  updateStudent: async (id: string, studentData: any) => {
+    try {
+      // Remove properties that shouldn't be updated
+      const { parentEmail, ...updateData } = studentData;
+      
+      const { data, error } = await supabase
+        .from('students')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+  
+  deleteStudent: async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      return true;
     } catch (error) {
       return handleError(error);
     }
