@@ -47,6 +47,14 @@ interface Student {
   parent_id?: string;
 }
 
+interface NewStudent {
+  name: string;
+  school: string;
+  grade: string;
+  parentEmail: string;
+  parentName: string;
+}
+
 const Students = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
@@ -54,11 +62,12 @@ const Students = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [newStudent, setNewStudent] = useState({
+  const [newStudent, setNewStudent] = useState<NewStudent>({
     name: '',
     school: '',
     grade: '',
-    parentEmail: ''
+    parentEmail: '',
+    parentName: ''
   });
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   const [parentProfiles, setParentProfiles] = useState<Record<string, string>>({});
@@ -73,7 +82,8 @@ const Students = () => {
       // Fetch students directly from Supabase
       const { data, error } = await supabase
         .from('students')
-        .select('*');
+        .select('*')
+        .eq('tutor_id', user?.id);
 
       if (error) {
         console.error('Error fetching students:', error);
@@ -133,7 +143,7 @@ const Students = () => {
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newStudent.name || !newStudent.school || !newStudent.grade || !newStudent.parentEmail) {
+    if (!newStudent.name || !newStudent.school || !newStudent.grade || !newStudent.parentEmail || !newStudent.parentName) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -151,15 +161,15 @@ const Students = () => {
       
       if (!existingParent) {
         // Parent doesn't exist, create a temporary account
-        const randomPassword = Math.random().toString(36).slice(-8);
+        const tempPassword = Math.random().toString(36).slice(-8);
         
         // Register new user with Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: newStudent.parentEmail,
-          password: randomPassword,
+          password: tempPassword,
           options: {
             data: {
-              name: `Parent of ${newStudent.name}`,
+              name: newStudent.parentName,
               role: 'parent'
             }
           }
@@ -181,7 +191,7 @@ const Students = () => {
           .insert({
             id: parentId,
             email: newStudent.parentEmail,
-            name: `Parent of ${newStudent.name}`,
+            name: newStudent.parentName,
             role: 'parent'
           });
           
@@ -190,7 +200,7 @@ const Students = () => {
           // Continue anyway, might be due to the trigger already creating it
         }
         
-        toast.info(`Parent account created with email: ${newStudent.parentEmail}. Temporary password: ${randomPassword}`);
+        toast.success(`Parent account created for ${newStudent.parentName}. Temporary password: ${tempPassword}`);
       } else {
         parentId = existingParent.id;
       }
@@ -218,7 +228,8 @@ const Students = () => {
         name: '',
         school: '',
         grade: '',
-        parentEmail: ''
+        parentEmail: '',
+        parentName: ''
       });
       
       await fetchStudents();
@@ -303,7 +314,7 @@ const Students = () => {
     setDeleteDialogOpen(true);
   };
 
-  if (loading) {
+  if (loading && students.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tutor-primary"></div>
@@ -356,6 +367,15 @@ const Students = () => {
                     id="grade"
                     name="grade"
                     value={newStudent.grade}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="parentName">Parent Name</Label>
+                  <Input
+                    id="parentName"
+                    name="parentName"
+                    value={newStudent.parentName}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -486,7 +506,6 @@ const Students = () => {
         </Card>
       )}
 
-      {/* Edit Student Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -559,7 +578,6 @@ const Students = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Student Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

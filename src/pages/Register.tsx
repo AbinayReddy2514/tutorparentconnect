@@ -8,27 +8,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type FormValues = {
   name: string;
   email: string;
   password: string;
-  role: string;
+  role: 'tutor';
 };
 
 const Register = () => {
   const { register: registerUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
-      role: 'tutor' // Set default value for role
+      role: 'tutor' // Only tutors can register directly
     }
   });
   
-  const selectedRole = watch('role');
-
   if (isAuthenticated) {
     navigate('/dashboard');
     return null;
@@ -37,7 +34,7 @@ const Register = () => {
   const onSubmit = async (data: FormValues) => {
     try {
       setLoading(true);
-      await registerUser(data);
+      await registerUser({...data, role: 'tutor'}); // Force role to be tutor
       navigate('/dashboard');
     } catch (error) {
       console.error('Registration error:', error);
@@ -51,8 +48,8 @@ const Register = () => {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Create an Account</CardTitle>
-            <CardDescription>Sign up to get started</CardDescription>
+            <CardTitle className="text-3xl font-bold">Create Tutor Account</CardTitle>
+            <CardDescription>Sign up to start managing your students</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -109,32 +106,7 @@ const Register = () => {
                   <p className="text-sm text-red-500">{errors.password.message}</p>
                 )}
               </div>
-              <div className="space-y-2">
-                <Label>I am a</Label>
-                <RadioGroup defaultValue="tutor">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem 
-                      value="tutor" 
-                      id="tutor" 
-                      {...register('role', { required: 'Role is required' })}
-                      checked={selectedRole === 'tutor'}
-                    />
-                    <Label htmlFor="tutor" className="cursor-pointer">Tutor</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem 
-                      value="parent" 
-                      id="parent" 
-                      {...register('role', { required: 'Role is required' })}
-                      checked={selectedRole === 'parent'}
-                    />
-                    <Label htmlFor="parent" className="cursor-pointer">Parent</Label>
-                  </div>
-                </RadioGroup>
-                {errors.role && (
-                  <p className="text-sm text-red-500">{errors.role.message}</p>
-                )}
-              </div>
+              <input type="hidden" {...register('role')} value="tutor" />
               <Button 
                 type="submit" 
                 className="w-full bg-tutor-primary hover:bg-blue-600"
@@ -146,7 +118,7 @@ const Register = () => {
                     Creating account...
                   </>
                 ) : (
-                  'Create Account'
+                  'Create Tutor Account'
                 )}
               </Button>
             </form>
